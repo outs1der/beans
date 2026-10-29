@@ -75,6 +75,7 @@ FIGSIZE_PAGE = (7, 5) # inches
 CC_CONFIG = { 'shade': True, 'shade_alpha': 1.0, 'bar_shade': True,
               'smooth': True, 'sigmas': [0,1,2] , 'statistics': 'cumulative'}
 CC_PLOT_CONFIG = { 'serif': True, 'usetex': USETEX}
+MIN_SAMPLES_PLOT = 1000 # don't show posteriors or predictions if you have fewer than this number of samples in a solution set
 
 # Some constants & standard units
 
@@ -2985,7 +2986,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
         # our statistics
 
         # if burnin >= self.nsteps_completed*0.9:
-        if (self.sampler == 'emcee') & ((self.nwalkers * (self.nsteps_completed - burnin) < 1000) | \
+        if (self.sampler == 'emcee') & ((self.nwalkers * (self.nsteps_completed - burnin) < MIN_SAMPLES_PLOT) | \
             (self.nsteps_completed <= burnin)):
             logger.warning('discarding burnin {} will leave too few steps ({} total), ignoring'.format(
                 burnin, self.nsteps_completed))
@@ -3427,7 +3428,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                         # need to check that there are sufficient samples here
                         _sel = np.array(part) == _n
                         _check = np.shape(self.samples[_sel])[0]
-                        if _check > 1000:
+                        if _check > MIN_SAMPLES_PLOT:
                             _df = pd.DataFrame(self.samples[_sel],
                                 columns=[PARAM_LATEX[x] for x in self.cc_parameters])
                             _chain = Chain(samples=_df,
@@ -3598,87 +3599,91 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 _label = 'matched'
                 for i, numburstssim in enumerate(times.keys()):
 
-                    # populates both the main and residuals panel for each solution
-                    # print (i, numburstssim, times, ebs)
-                    timepred = [x[0] for x in times[numburstssim]]
-                    timepred_errup = [x[1] for x in times[numburstssim]]
-                    timepred_errlow = [x[2] for x in times[numburstssim]]
-                    ebpred = [x[0] for x in ebs[numburstssim]]
-                    ebpred_errup = [x[1] for x in ebs[numburstssim]]
-                    ebpred_errlow = [x[2] for x in ebs[numburstssim]]
-                    axs['time'].errorbar(timepred[itoff:], ebpred,
-                        yerr=[ebpred_errlow, ebpred_errup], linestyle='',
-                        # xerr=[timepred_errup[1:], timepred_errlow[1:]],
-                        marker='*', ms=STAR_SIZE, color='C{}'.format(i),
-                        label='predicted ({})'.format(numburstssim))
+                    if self.model_pred['part_stats'][numburstssim] <= MIN_SAMPLES_PLOT:
+                        logger.info('skipping model predictions for n={}, too few samples ({})'.format(
+                            numburstssim, self.model_pred['part_stats'][numburstssim]))
 
-                    if self.continuous:
-                        # only relevant for train mode with generate_burst_train
-                        ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
-                        imatch = burst_time_match(self.ref_ind, self.bstart,
-                            ref_tpred, np.array(timepred))
-                        # we don't have a fluence for the first burst, so just show the time
-                        axs['time'].axvline(timepred[0], color='C{}'.format(i), ls='--')
                     else:
-                        imatch = burst_time_match(0, self.bstart,
-                            0, np.array(timepred))
+                        # populates both the main and residuals panel for each solution
+                        # print (i, numburstssim, times, ebs)
+                        timepred = [x[0] for x in times[numburstssim]]
+                        timepred_errup = [x[1] for x in times[numburstssim]]
+                        timepred_errlow = [x[2] for x in times[numburstssim]]
+                        ebpred = [x[0] for x in ebs[numburstssim]]
+                        ebpred_errup = [x[1] for x in ebs[numburstssim]]
+                        ebpred_errlow = [x[2] for x in ebs[numburstssim]]
+                        axs['time'].errorbar(timepred[itoff:], ebpred,
+                            yerr=[ebpred_errlow, ebpred_errup], linestyle='',
+                            # xerr=[timepred_errup[1:], timepred_errlow[1:]],
+                            marker='*', ms=STAR_SIZE, color='C{}'.format(i),
+                            label='predicted ({})'.format(numburstssim))
 
-                    # Here we define imatchm1, which is an exact copy of imatch for punkt_train results
-                    # (i.e. where itoff = 0). This array should replace imatch below when indexing
-                    # alpha and fluence arrays, so that the numbering is consistent between the two
-                    # types of models
-                    imatchm1 = [x-itoff for x in imatch if x-itoff >= 0]
-                    axs['time'].plot(np.array(timepred[itoff:])[imatchm1],
-                        np.array(ebpred)[imatchm1], linestyle='',
-                        marker='*', ms=STAR_SIZE/2, color='tab:red',
-                        label=_label,zorder=99)
-                    _label = None # only give the label the first time
+                        if self.continuous:
+                            # only relevant for train mode with generate_burst_train
+                            ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
+                            imatch = burst_time_match(self.ref_ind, self.bstart,
+                                ref_tpred, np.array(timepred))
+                            # we don't have a fluence for the first burst, so just show the time
+                            axs['time'].axvline(timepred[0], color='C{}'.format(i), ls='--')
+                        else:
+                            imatch = burst_time_match(0, self.bstart,
+                                0, np.array(timepred))
 
-                    resid = -(self.bstart-np.array(timepred)[imatch])*24.
-                    axs['resid'].errorbar(self.bstart, resid,
-                        yerr=[np.array(timepred_errlow)[imatch]*24.,
-                        np.array(timepred_errup)[imatch]*24.],
-                        marker='*', ms=STAR_SIZE, linestyle='', color='C{}'.format(i))
-                    # print some information about this set of analyses
-                    logger.info ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
-                        numburstssim, 100.*self.model_pred['part_stats'][numburstssim]/len(self.samples),
-                        np.sqrt(np.mean(resid**2))))
-                    print (numburstssim, imatch)
+                        # Here we define imatchm1, which is an exact copy of imatch for punkt_train results
+                        # (i.e. where itoff = 0). This array should replace imatch below when indexing
+                        # alpha and fluence arrays, so that the numbering is consistent between the two
+                        # types of models
+                        imatchm1 = [x-itoff for x in imatch if x-itoff >= 0]
+                        axs['time'].plot(np.array(timepred[itoff:])[imatchm1],
+                            np.array(ebpred)[imatchm1], linestyle='',
+                            marker='*', ms=STAR_SIZE/2, color='tab:red',
+                            label=_label,zorder=99)
+                        _label = None # only give the label the first time
 
-                    if _has_alpha:
-                        # populate the alphas panel
-                        alpred = [x[0] for x in alphas[numburstssim]]
-                        alpred_errup = [x[1] for x in alphas[numburstssim]]
-                        alpred_errlow = [x[2] for x in alphas[numburstssim]]
-                        # some tricky indexing required here, for consistency with both the
-                        # generate_burst_train and punkt_train results, which have different indexing
-                        # for the alpha and fluence arrays
-                        axs['alpha'].errorbar(self.alpha[self.ifluen][1:],
-                                              np.array(alpred)[imatchm1][self.ifluen[itoff:]-itoff][1-itoff:],
-                            xerr=self.alphae[self.ifluen][1:],
-                            yerr=[np.array(alpred_errlow)[imatchm1][self.ifluen[itoff:]-itoff][1-itoff:],
-                                  np.array(alpred_errup)[imatchm1][self.ifluen[itoff:]-itoff][1-itoff:]],
+                        resid = -(self.bstart-np.array(timepred)[imatch])*24.
+                        axs['resid'].errorbar(self.bstart, resid,
+                            yerr=[np.array(timepred_errlow)[imatch]*24.,
+                            np.array(timepred_errup)[imatch]*24.],
                             marker='*', ms=STAR_SIZE, linestyle='', color='C{}'.format(i))
+                        # print some information about this set of analyses
+                        logger.info ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
+                            numburstssim, 100.*self.model_pred['part_stats'][numburstssim]/len(self.samples),
+                            np.sqrt(np.mean(resid**2))))
+                        print (numburstssim, imatch)
 
-                    if _has_pflux:
-                        # plot the peak flux values and compare against the Eddington fluxes
-                        # Fluxes are just calculated as bean.L_Edd/dist**2, bean.L_Edd_err/dist**2
-                        # so can generate (for example) a histogram of Eddington fluxes for comparison
-                        # with the measured peak fluxes
-                        # show the model distribution of Eddington fluxes
-                        _bnum = np.arange(len(self.bpflux)) + 1
-                        _F_Edd = self.L_Edd/self.samples[:,3][np.array(self.model_pred['partition']) == numburstssim]**2
-                        _hst, _bins = np.histogram(_F_Edd,
-                                                   bins=np.arange(int(min(_F_Edd)/_bin_width)*_bin_width, max(_F_Edd), _bin_width))
+                        if _has_alpha:
+                            # populate the alphas panel
+                            alpred = [x[0] for x in alphas[numburstssim]]
+                            alpred_errup = [x[1] for x in alphas[numburstssim]]
+                            alpred_errlow = [x[2] for x in alphas[numburstssim]]
+                            # some tricky indexing required here, for consistency with both the
+                            # generate_burst_train and punkt_train results, which have different indexing
+                            # for the alpha and fluence arrays
+                            axs['alpha'].errorbar(self.alpha[self.ifluen][1:],
+                                                  np.array(alpred)[imatchm1][self.ifluen[itoff:]-itoff][1-itoff:],
+                                xerr=self.alphae[self.ifluen][1:],
+                                yerr=[np.array(alpred_errlow)[imatchm1][self.ifluen[itoff:]-itoff][1-itoff:],
+                                      np.array(alpred_errup)[imatchm1][self.ifluen[itoff:]-itoff][1-itoff:]],
+                                marker='*', ms=STAR_SIZE, linestyle='', color='C{}'.format(i))
 
-                        breakpoint()
-                        plt.stackplot([0,max(_bnum)+1],[[_bins[0], _bins[0]]] + [[_bin_width, _bin_width]]*(len(_hst)-1),
-                                      # colors=['{:.2f}'.format(1-x/max(_hst)*_max_int) for x in _hst])
-                                      colors=[('C{}'.format(i), x/max(_hst)*_max_int) for x in _hst])
-                        # this does something weird
-                        # axs['pflux'].set_ylim(0, (int(max(_F_Edd)/_bin_width)+1)*_bin_width )
-                        # axs['pflux'].errorbar(np.arange(len(self.bpflux)) + 1, self.bpflux,
-                        #              yerr=self.bpfluxe, marker='*', ms=11, linestyle='', color='C0')
+                        if _has_pflux:
+                            # plot the peak flux values and compare against the Eddington fluxes
+                            # Fluxes are just calculated as bean.L_Edd/dist**2, bean.L_Edd_err/dist**2
+                            # so can generate (for example) a histogram of Eddington fluxes for comparison
+                            # with the measured peak fluxes
+                            # show the model distribution of Eddington fluxes
+                            _bnum = np.arange(len(self.bpflux)) + 1
+                            _F_Edd = self.L_Edd/self.samples[:,3][np.array(self.model_pred['partition']) == numburstssim]**2
+                            _hst, _bins = np.histogram(_F_Edd,
+                                                       bins=np.arange(int(min(_F_Edd)/_bin_width)*_bin_width, max(_F_Edd), _bin_width))
+
+                            plt.stackplot([0,max(_bnum)+1],[[_bins[0], _bins[0]]] + [[_bin_width, _bin_width]]*(len(_hst)-1),
+                                          # colors=['{:.2f}'.format(1-x/max(_hst)*_max_int) for x in _hst])
+                                          colors=[('C{}'.format(i), x/max(_hst)*_max_int) for x in _hst])
+                            # this does something weird
+                            # axs['pflux'].set_ylim(0, (int(max(_F_Edd)/_bin_width)+1)*_bin_width )
+                            # axs['pflux'].errorbar(np.arange(len(self.bpflux)) + 1, self.bpflux,
+                            #              yerr=self.bpfluxe, marker='*', ms=11, linestyle='', color='C0')
 
                 # end loop over key(s)
 
