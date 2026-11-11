@@ -151,6 +151,16 @@ from .mrprior import mr_prior
 from .run_emcee import runemcee
 from .analyse import get_param_uncert_part, get_param_uncert
 
+HAS_BILBY = False
+try:
+    # required for using dynesty sampler
+    import bilby
+    from .run_bilby import runbilby
+
+    HAS_BILBY = True
+except:
+    pass
+
 # multiepoch_mcmc is required to use the grid_interp model
 has_multiepoch_mcmc = True
 try:
@@ -890,15 +900,6 @@ class Beans:
     except:
         pass
 
-    HAS_BILBY = False
-    try:
-        # required for using dynesty sampler
-        import bilby
-        from .run_bilby import runbilby
-        HAS_BILBY = True
-    except:
-        pass
-
     def __init__(self, config_file=None, run_id="test",
                  prior=prior_func, lnlike=lnlike_sys, corr=None,
                  obsname=None, burstname=None, gtiname=None,
@@ -1231,7 +1232,7 @@ class Beans:
 
         # Some checks here
 
-        if (self.sampler != 'emcee') & (not self.HAS_BILBY):
+        if (self.sampler != 'emcee') & (not HAS_BILBY):
             logger.error('using samplers other than emcee requires bilby')
             return
 
@@ -2217,8 +2218,7 @@ Initial parameters:
         elif sampler == 'dynesty':
             # bilby's implementation of dynesty, see
             #
-            breakpoint()
-            result = self.runbilby(self, sampler=sampler, **kwargs)
+            result = runbilby(self, sampler=sampler, **kwargs)
 
         _end = time.time()
         logger.info (" run_id {} took {:.1f} seconds to reach {} steps".format(
@@ -2387,7 +2387,7 @@ Initial parameters:
         :return: astropy table of burst properties
         """
 
-        if not self.HAS_CONCORD:
+        if not Beans.HAS_CONCORD:
             logger.error ('alpha calculation requires concord')
             return None
 
@@ -3565,8 +3565,9 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                     _layout += [['alpha' if _has_alpha else '.', 'pflux' if _has_pflux else '.']] * 2
                 fig, axs = plt.subplot_mosaic(_layout, figsize=figsize,
                     constrained_layout=True)
+                # axs['time'].set(xticklabels=[])
                 axs['resid'].sharex(axs['time'])
-                axs['time'].set(xticklabels=[])
+                axs['time'].label_outer() # only want labels on the residual x-axis, not both
                 ax1 = axs['time'] # label for the title etc.
                 # indicate by the background colour if the data is present but not used
                 if (_has_pflux):

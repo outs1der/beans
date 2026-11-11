@@ -58,7 +58,7 @@ class BeansLikelihood(bilby.Likelihood):
             theta = (X, Z, Q_b, d, xi_b, xi_p)
 
         # lnlike first element is the model likelihood
-        return self.data.lnlike(theta, None, self.data.y, self.data.yerr)[0]
+        return self.data.lnlike(self.data, theta, None, self.data.y, self.data.yerr)[0]
 
 
 def runbilby(bean, outdir='bilby_out', sampler='emcee', **kwargs):
@@ -84,7 +84,6 @@ def runbilby(bean, outdir='bilby_out', sampler='emcee', **kwargs):
     else:
         print('    Running run={} with sampler {}...'.format(sampler))
 
-    breakpoint()
     bilby.utils.check_directory_exists_and_if_not_mkdir(outdir)
     bean.outdir = outdir
 
@@ -102,13 +101,13 @@ def runbilby(bean, outdir='bilby_out', sampler='emcee', **kwargs):
         # r3=bilby.core.prior.Uniform(0, 1., "r3"),
         d=bilby.core.prior.Uniform(1,20,"d"),
         xi_b=bilby.core.prior.Uniform(0.1,2,"xi_b"),
-        xi_p=bilby.core.prior.Uniform(0.1,2,"xi_p"),
+        xi_p=bilby.core.prior.Uniform(0.1,10,"xi_p"),
     )
     if len(theta) > 6:
-        M=bilby.core.prior.Uniform(1.15, 2.5, "M"), # solar masses
+        priors['M'] = bilby.core.prior.Uniform(1.15, 2.5, "M"), # solar masses
 
     if len(theta) > 7:
-        R=bilby.core.prior.Uniform(9, 17, "R"), # km
+        priors['R'] = bilby.core.prior.Uniform(9, 17, "R"), # km
 
     # set initial positions
     if sampler == 'emcee':
@@ -127,12 +126,10 @@ def runbilby(bean, outdir='bilby_out', sampler='emcee', **kwargs):
 
     print("# ---------------------------------------------------------------------------#")
     # run sampler
-    # TODO call this with parameters set conditionally by choice of
-    # sampler
+    # TODO call this with parameters set conditionally by choice of sampler; initally set for dynesty only
     result = bilby.run_sampler(
         likelihood=likelihood,
         priors=priors,
-        pos0 = pos_i,
         outdir=outdir,
         label=bean.run_id,
         # bilby_mcmc:
@@ -141,6 +138,7 @@ def runbilby(bean, outdir='bilby_out', sampler='emcee', **kwargs):
         # emcee settings:
         sampler=sampler,
         # nwalkers=bean.nwalkers, nsteps=bean.nsteps, a=bean.stretch_a,
+        # pos0 = pos_i,
         # nburn=nburn,
         # dynesty settings:
         nlive=bean.nlive, dlogz=bean.dlogz,
