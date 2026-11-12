@@ -11,6 +11,8 @@
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import numpy as np
+# don't show the annoying np.float64(...
+np.set_printoptions(legacy='1.25')
 import pandas as pd
 import emcee
 import astropy.units as u
@@ -4092,6 +4094,12 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
             logger.error ('will overwrite existing archive file {}, set clobber=True to replace'.format(savefile))
             return
 
+	# generate some of the figures that need the entire chain
+
+        if not os.path.exists(self.run_id+'_autocorrelationtimes.pdf'):
+            # save the chain plot before we delete the result array
+            self.do_analysis(['autocor'],savefig=True,show=False)
+
         if not os.path.exists(self.run_id+'_chain-plot.pdf'):
             # save the chain plot before we delete the result array
             self.do_analysis(['chain'],savefig=True,show=False)
@@ -4101,6 +4109,17 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
         self.from_archive = True
         pickle.dump(self, open(savefile, 'wb'))
         _pfile_size = os.path.getsize(savefile)
+
+        if samples:
+            # try to generate a sensible name for the samples file
+            # and save them first, just in case there's an issue with
+            # deleting the .h5 file!
+            dummy, file_ext = os.path.splitext(savefile)
+            samples_savefile = savefile.replace(file_ext, '_samples'+file_ext)
+            logger.info('writing samples and labels to {}'.format(samples_savefile))
+            pickle.dump((self.cc_parameters, self.samples), open(samples_savefile, 'wb'))
+        else:
+            logger.warning ('with samples=False, deleting the .h5 file will leave no record of the chains!')
 
         _h5file = self.run_id+'.h5'
         if os.path.exists(_h5file):
@@ -4112,19 +4131,12 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 logger.info('{} -> {}, {:.1f} Mb saved'.format(_h5file, savefile, (_h5file_size-_pfile_size)/1e6))
         else:
             logger.warning('{} file not found, cannot remove'.format(_h5file))
-
-        if samples:
-            # try to generate a sensible name for the samples file
-            dummy, file_ext = os.path.splitext(savefile)
-            samples_savefile = savefile.replace(file_ext, '_samples'+file_ext)
-            logger.info('writing samples and labels to {}'.format(samples_savefile))
-            pickle.dump((B.cc_parameters, B.samples), open(samples_savefile, 'wb'))
-            logger.info('archive complete')
-
-            return savefile, samples_savefile
-
+            return None
 
         logger.info('archive complete')
+
+        if samples:
+            return savefile, samples_savefile
 
         return savefile
 
