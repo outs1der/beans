@@ -12,11 +12,11 @@ The original application of the distant ancestor of the present code,
 based on 4 bursts and persistent flux measurements during the 2002
 transient outburst of this 401-Hz accretion-powered millisecond pulsar.
 
-The latest set of results were reported in `Galloway et al. (2026)`_, as part
+The latest set of results were reported in `Galloway et al. (2026a)`_, as part
 of an attempt to better establish the use of the alpha-values in the
 likelihood. Below are the relevant files:
 
-.. _Galloway et al. (2026): http://arxiv.org/abs/26xx.yyyyy
+.. _Galloway et al. (2026a): http://arxiv.org/abs/2608.21196
 
 * 1808_base.ini - configuration file for the "base" run
 * 1808_bursts_newalpha.txt - updated input data file for bursts, including improved alpha measurements and peak burst fluxes
@@ -39,7 +39,7 @@ These files were used for the application to the 8-burst sample
 accumulated from the 2011 outburst of this (also, coincidentally) 401-Hz
 accretion-powered millisecond pulsar.
 
-The latest set of results were also reported in `Galloway et al. (2026)`_.
+The latest set of results were also reported in `Galloway et al. (2026a)`_.
 
 * 17498_base.ini - configuration file for the new "base" run, now including the alpha values
 * 17498_bursts_newalpha.txt - updated input data file for bursts, with improved alpha estimates
@@ -71,7 +71,7 @@ SRGA J144459.2–604207
 
 Data files for "ensemble" mode application to the 448 Hz millisecond
 pulsar, with averages of up to 14 epochs of daily data from the 2024
-outburst, as reported in `Galloway et al. (2026)`_.
+outburst, as reported in `Galloway et al. (2026a)`_, submitted to PASA.
 
 * 144459_base.ini - configuration file for the "base" run on the 5-epoch selected data
 * 144459_ensbl_day.txt - full set of daily ensemble data, with 14 epochs
@@ -83,6 +83,20 @@ simulated data, to verify operation of the code.
 * 144459_sim_ini - configuration file for the simulation run
 * 144459_ensbl_sim1.txt - simulated data with 5 epochs matching roughly the properties of SRGA J144459.2–604207
 
+
+IGR J17511-3057
+---------------
+
+Data files for application to the 21-burst sample detected during the 2009
+outburst of this 245 Hz millisecond pulsar, 
+as reported in `Galloway et al. (2026b)`_, submitted to PASA.
+
+.. _Galloway et al. (2026b): http://arxiv.org/abs/26xx.yyyyy
+
+* 17511_pa_mr.ini - configuration file for the main run as reported in the paper
+* 17511_bursts_pflux+alpha.txt - input data file for bursts, including alpha values and peak fluxes (where available)
+* 17511_obs.txt - input data file for (bolometric) persistent flux
+* measurements, adapted from `Falanga et al. (2011) <https://doi.org/10.1051/0004-6361/201016240>`_
 
 Miscellaneous files
 -------------------
